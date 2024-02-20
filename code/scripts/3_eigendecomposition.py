@@ -7,13 +7,14 @@ import subprocess
 import cooler
 import cooltools
 import bioframe as bf
+import pandas as pd
 import numpy as np
 
-resolution = snakemake.wildcards['resolution']
+resolution = int(snakemake.wildcards['resolution'])
 labels = list(snakemake.config['labels'])
 
 input_dir = snakemake.params['input_dir']
-output_dir = snakemake.output['output_directory']
+output_dir = f"{snakemake.params['output_dir']}/{resolution}"
 pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
 
 chromosomes = [f'chr{i}' for i in range(1, 20)]
@@ -45,29 +46,25 @@ with open(f'{output_dir}/dchic/analysis/dchic_input.txt', 'w') as f:
         s += f'{PIXELS_PATH}\t{BINS_PATH}\t{label}\t{samples[label]}\n'
     f.write(s)
   
-cmd1 = f'conda run -n dchic Rscript {snakemake.config["DCHIC_DIR"]}/dchicf.r --file dchic_input.txt --pcatype cis --dirovwt &> {output_dir}/dchic/analysis/dchicf_cis.log'
+cmd1 = f'conda run -n dchic Rscript {snakemake.config["DCHIC_DIR"]}/dchicf.r --file dchic_input.txt --pcatype cis --dirovwt T &> {output_dir}/dchic/analysis/dchicf_cis.log'
 print(cmd1)
 shout = subprocess.Popen(cmd1, shell=True, cwd=f'{output_dir}/dchic/analysis', stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.read().decode('utf-8')
 print(shout)
 
 eigenvectors_dchic_df = df.copy()
 for label in labels:
-    eigenvectors_dchic_df[f'{label}_E1'] = np.nan
-    eigenvectors_dchic_df[f'{label}_E2'] = np.nan
+    all_chrom_PCs = []
     for chrom in chromosomes:
-        chrom_E1 = bf.read_table(f'{output_dir}/dchic/analysis/{label}_pca/intra_pca/{label}_mat/{chrom}.PC1.bedGraph', names=['chrom', 'start', 'end', f'{label}_E1'])
-        chrom_E2 = bf.read_table(f'{output_dir}/dchic/analysis/{label}_pca/intra_pca/{label}_mat/{chrom}.PC2.bedGraph', names=['chrom', 'start', 'end', f'{label}_E2'])
-        eigenvectors_dchic_df = eigenvectors_dchic_df.merge(chrom_E1, on=['chrom', 'start', 'end'], how='left')
-        eigenvectors_dchic_df = eigenvectors_dchic_df.merge(chrom_E2, on=['chrom', 'start', 'end'], how='left')
+        chrom_PCs = bf.read_table(f'{output_dir}/dchic/analysis/{label}_pca/intra_pca/{label}_mat/{chrom}.pc.txt', header=0).rename(columns={'chr': 'chrom', 'PC1': f'{label}_E1', 'PC2': f'{label}_E2'}).drop(columns=['index'])
+        all_chrom_PCs.append(chrom_PCs.copy())
+    all_chrom_PCs = pd.concat(all_chrom_PCs)
+    eigenvectors_dchic_df = eigenvectors_dchic_df.merge(all_chrom_PCs, on=['chrom', 'start', 'end'], how='left')
 
 eigenvectors_dchic_df.to_csv(snakemake.output['eigenvectors_dchic'], sep='\t', index=False)
 
 # cooltools
 eigenvectors_cooltools_df = df.copy()
 for label in labels:
-    eigenvectors_cooltools_df[f'{label}_E1'] = np.nan
-    eigenvectors_cooltools_df[f'{label}_E2'] = np.nan
-
     cool = cooler.Cooler(f'{input_dir}/{label}_{resolution}_balanced.cool')
     eigs = cooltools.eigs_cis(cool, n_eigs=2)
     eigenvectors = eigs[1][['chrom', 'start', 'end', 'E1', 'E2']].rename(columns={'E1': f'{label}_E1', 'E2': f'{label}_E2'})

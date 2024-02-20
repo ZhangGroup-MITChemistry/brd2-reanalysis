@@ -17,9 +17,9 @@ rule R1_get_contact_maps:
 
 rule R2_normalize_and_balance:
     input:
-        contact_maps = f"{OUTPUT_DIR}/1_contact_maps/hic-pro/hic_results/matrix/{{label}}/raw/{{resolution}}/{{label}}_{{resolution}}.matrix"
+        contact_maps = expand(f"{OUTPUT_DIR}/1_contact_maps/hic-pro/hic_results/matrix/{{label}}/raw/{{resolution}}/{{label}}_{{resolution}}.matrix", label=labels, resolution=resolutions)
     output: 
-        normalized_and_balanced_contact_maps = f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps/{{label}}_{{resolution}}_balanced.cool",
+        normalized_and_balanced_contact_maps = expand(f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps/{{label}}_{{resolution}}_balanced.cool", label=labels, resolution=resolutions)
     params:
         input_dir = f"{OUTPUT_DIR}/1_contact_maps",
         output_dir = f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps"
@@ -29,10 +29,11 @@ rule R3_eigendecomposition:
     input:
         normalized_and_balanced_contact_maps = expand(f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps/{{label}}_{{resolution}}_balanced.cool", label=labels, resolution=resolutions)
     output:
-        output_directory = directory(f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}"),
         eigenvectors_cooltools = f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}/eigenvectors_cooltools.tsv",
         eigenvectors_dchic = f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}/eigenvectors_dchic.tsv",
-    params: input_dir = f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps"
+    params:
+        input_dir = f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps",
+        output_dir = f"{OUTPUT_DIR}/3_eigendecomposition"
     script: "scripts/3_eigendecomposition.py"
 
 # rule R4_select:
