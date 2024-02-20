@@ -1,0 +1,45 @@
+configfile: "config.yaml"
+OUTPUT_DIR = config["output"]
+
+labels = list(config["labels"])
+resolutions = list(config["resolutions"])
+
+rule all:
+    input:
+        expand(f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}/eigenvectors_cooltools.tsv", resolution=resolutions),
+        expand(f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}/eigenvectors_dchic.tsv", resolution=resolutions)
+
+rule R1_get_contact_maps:
+    output: 
+        output_directory = directory(f"{OUTPUT_DIR}/1_contact_maps"),
+        contact_maps = expand(f"{OUTPUT_DIR}/1_contact_maps/hic-pro/hic_results/matrix/{{label}}/raw/{{resolution}}/{{label}}_{{resolution}}.matrix", label=labels, resolution=resolutions)
+    script: "scripts/1_get_contact_maps.py"
+
+rule R2_normalize_and_balance:
+    input:
+        contact_maps = f"{OUTPUT_DIR}/1_contact_maps/hic-pro/hic_results/matrix/{{label}}/raw/{{resolution}}/{{label}}_{{resolution}}.matrix"
+    output: 
+        normalized_and_balanced_contact_maps = f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps/{{label}}_{{resolution}}_balanced.cool",
+    params:
+        input_dir = f"{OUTPUT_DIR}/1_contact_maps",
+        output_dir = f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps"
+    script: "scripts/2_normalize_and_balance.py"
+
+rule R3_eigendecomposition:
+    input:
+        normalized_and_balanced_contact_maps = expand(f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps/{{label}}_{{resolution}}_balanced.cool", label=labels, resolution=resolutions)
+    output:
+        output_directory = directory(f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}"),
+        eigenvectors_cooltools = f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}/eigenvectors_cooltools.tsv",
+        eigenvectors_dchic = f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}/eigenvectors_dchic.tsv",
+    params: input_dir = f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps"
+    script: "scripts/3_eigendecomposition.py"
+
+# rule R4_select:
+#     pass
+
+# rule R5_analyze:
+#     pass
+
+# rule R6_plot:
+#     pass
