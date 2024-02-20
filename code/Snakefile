@@ -6,8 +6,8 @@ resolutions = list(config["resolutions"])
 
 rule all:
     input:
-        expand(f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}/eigenvectors_cooltools.tsv", resolution=resolutions),
-        expand(f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}/eigenvectors_dchic.tsv", resolution=resolutions)
+        expand(f"{OUTPUT_DIR}/4_selected/compartments_cooltools_{{resolution}}.tsv", resolution=resolutions),
+        expand(f"{OUTPUT_DIR}/4_selected/compartments_dchic_{{resolution}}.tsv", resolution=resolutions)
 
 rule R1_get_contact_maps:
     output: 
@@ -36,8 +36,16 @@ rule R3_eigendecomposition:
         output_dir = f"{OUTPUT_DIR}/3_eigendecomposition"
     script: "scripts/3_eigendecomposition.py"
 
-# rule R4_select:
-#     pass
+rule R4_select:
+    input:
+        eigenvectors_cooltools = f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}/eigenvectors_cooltools.tsv",
+        eigenvectors_dchic = f"{OUTPUT_DIR}/3_eigendecomposition/{{resolution}}/eigenvectors_dchic.tsv",
+    output:
+        eigenvectors_cooltools = f"{OUTPUT_DIR}/4_selected/compartments_cooltools_{{resolution}}.tsv",
+        eigenvectors_dchic = f"{OUTPUT_DIR}/4_selected/compartments_dchic_{{resolution}}.tsv",
+    params:
+        eigen_output_dir = f"{OUTPUT_DIR}/3_eigendecomposition"
+    script: "scripts/4_selection.py"
 
 # rule R5_analyze:
 #     pass
