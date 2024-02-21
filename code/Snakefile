@@ -6,8 +6,7 @@ resolutions = list(config["resolutions"])
 
 rule all:
     input:
-        expand(f"{OUTPUT_DIR}/4_selected/compartments_cooltools_{{resolution}}.tsv", resolution=resolutions),
-        expand(f"{OUTPUT_DIR}/4_selected/compartments_dchic_{{resolution}}.tsv", resolution=resolutions)
+        expand(f"{OUTPUT_DIR}/6_plots/{{resolution}}", resolution=resolutions),
 
 rule R1_get_contact_maps:
     output: 
@@ -47,8 +46,24 @@ rule R4_select:
         eigen_output_dir = f"{OUTPUT_DIR}/3_eigendecomposition"
     script: "scripts/4_selection.py"
 
-# rule R5_analyze:
-#     pass
+rule R5_analyze:
+    input:
+        normalized_and_balanced_contact_maps = expand(f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps/{{label}}_{{resolution}}_balanced.cool", label=labels, resolution=resolutions),
+        eigenvectors_cooltools = f"{OUTPUT_DIR}/4_selected/compartments_cooltools_{{resolution}}.tsv",
+        eigenvectors_dchic = f"{OUTPUT_DIR}/4_selected/compartments_dchic_{{resolution}}.tsv",
+    params:
+        cool_input_dir = f"{OUTPUT_DIR}/2_normalized_and_balanced_contact_maps",
+    output:
+        saddles_cooltools = f"{OUTPUT_DIR}/5_analyze/saddles_cooltools_{{resolution}}.npz",
+        saddles_dchic = f"{OUTPUT_DIR}/5_analyze/saddles_dchic_{{resolution}}.npz",
+    script: "scripts/5_analyze.py"
 
-# rule R6_plot:
-#     pass
+rule R6_plot:
+    input:
+        compartments_cooltools = f"{OUTPUT_DIR}/4_selected/compartments_cooltools_{{resolution}}.tsv",
+        compartments_dchic = f"{OUTPUT_DIR}/4_selected/compartments_dchic_{{resolution}}.tsv",
+        saddles_cooltools = f"{OUTPUT_DIR}/5_analyze/saddles_cooltools_{{resolution}}.npz",
+        saddles_dchic = f"{OUTPUT_DIR}/5_analyze/saddles_dchic_{{resolution}}.npz",
+    output:
+        plots = directory(f"{OUTPUT_DIR}/6_plots/{{resolution}}"),
+    script: "scripts/6_plot.py"
